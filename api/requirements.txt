@@ -1,1 +1,2 @@
 azure-functions
+six>=1.16.0

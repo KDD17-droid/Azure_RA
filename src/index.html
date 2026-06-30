@@ -1,454 +1,909 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Review Analyser — graded by AI</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Caveat:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --board: #1E3B2F;
-    --board-line: rgba(244,241,232,0.14);
-    --chalk: #F4F1E8;
-    --chalk-dim: rgba(244,241,232,0.62);
-    --paper: #F6F4EC;
-    --paper-line: rgba(30,40,30,0.10);
-    --ink: #233326;
-    --ink-soft: #5B6B5C;
-    --highlight: #F2C84B;
-    --pos: #5E9C7C;
-    --neu: #C9A227;
-    --neg: #D9684F;
-    --rule: #B6442F;
-    --radius: 3px;
-    --display: "Special Elite", "Courier New", monospace;
-    --hand: "Caveat", cursive;
-    --body: "Work Sans", system-ui, sans-serif;
-    --mono: "IBM Plex Mono", monospace;
-  }
-
-  *{ box-sizing: border-box; }
-  html{ scroll-behavior: smooth; }
-  body{
-    margin:0;
-    font-family: var(--body);
-    color: var(--ink);
-    background: var(--board);
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ---------- Hero / board ---------- */
-  .board{
-    background:
-      repeating-linear-gradient(transparent 0 38px, var(--board-line) 38px 39px),
-      var(--board);
-    color: var(--chalk);
-    padding: 64px 24px 56px;
-    text-align: center;
-    border-bottom: 6px solid #14261d;
-  }
-  .board-inner{ max-width: 720px; margin: 0 auto; }
-  .eyebrow{
-    font-family: var(--mono);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    font-size: 12px;
-    color: var(--chalk-dim);
-    margin: 0 0 18px;
-  }
-  .typewriter-title{
-    font-family: var(--display);
-    font-size: clamp(2.4rem, 6vw, 4rem);
-    letter-spacing: 0.01em;
-    margin: 0;
-    text-shadow: 0 0 22px rgba(244,241,232,0.18);
-  }
-  .chalk-note{
-    font-family: var(--hand);
-    font-size: 1.6rem;
-    color: var(--highlight);
-    margin: 6px 0 36px;
-    transform: rotate(-1deg);
-  }
-  .steps{
-    list-style: none;
-    padding: 0;
-    margin: 0 auto;
-    max-width: 560px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    text-align: left;
-    font-size: 0.95rem;
-    color: var(--chalk-dim);
-  }
-  .steps li{ display:flex; align-items:center; gap: 12px; }
-  .chalk-num{
-    font-family: var(--hand);
-    font-size: 1.3rem;
-    color: var(--chalk);
-    width: 28px; height: 28px;
-    border: 2px solid var(--chalk-dim);
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-  }
-
-  /* ---------- Desk / sheets ---------- */
-  .desk{
-    max-width: 760px;
-    margin: -28px auto 0;
-    padding: 0 20px 64px;
-    position: relative;
-  }
-  .sheet{
-    background: var(--paper);
-    border-radius: var(--radius);
-    box-shadow: 0 18px 40px rgba(0,0,0,0.28);
-    padding: 28px 28px 24px;
-    margin-bottom: 24px;
-    position: relative;
-  }
-  .sheet::before{
-    content:"";
-    position: absolute;
-    left: 0; right: 0; top: 0;
-    height: 6px;
-    background: repeating-linear-gradient(90deg, transparent 0 14px, rgba(0,0,0,0.06) 14px 16px);
-    border-radius: var(--radius) var(--radius) 0 0;
-  }
-  .sheet-label{
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    margin: 0 0 10px;
-  }
-
-  textarea{
-    width: 100%;
-    font-family: var(--body);
-    font-size: 1rem;
-    line-height: 1.55;
-    color: var(--ink);
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--paper-line);
-    resize: vertical;
-    padding: 4px 2px 16px;
-    background-image: repeating-linear-gradient(transparent 0 31px, var(--paper-line) 31px 32px);
-  }
-  textarea:focus{ outline: 2px solid var(--highlight); outline-offset: 2px; }
-
-  .sheet-footer{
-    display:flex;
-    align-items:center;
-    justify-content: space-between;
-    margin-top: 16px;
-  }
-  .mono{ font-family: var(--mono); }
-  .small{ font-size: 12px; }
-  .tiny{ font-size: 10.5px; }
-  #charCount{ color: var(--ink-soft); }
-
-  .stamp-button{
-    font-family: var(--display);
-    font-size: 0.95rem;
-    letter-spacing: 0.04em;
-    background: var(--rule);
-    color: var(--paper);
-    border: none;
-    padding: 12px 22px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
-    box-shadow: 0 4px 0 #8a2f1d;
-  }
-  .stamp-button:hover{ transform: translateY(-1px); }
-  .stamp-button:active{ transform: translateY(2px); box-shadow: 0 1px 0 #8a2f1d; }
-  .stamp-button:focus-visible{ outline: 3px solid var(--highlight); outline-offset: 2px; }
-  .stamp-button:disabled{ opacity: 0.6; cursor: progress; }
-
-  .error-msg{
-    color: var(--neg);
-    font-family: var(--mono);
-    font-size: 12px;
-    margin: 12px 0 0;
-  }
-
-  .loading-msg{
-    text-align: center;
-    color: var(--chalk-dim);
-    margin-top: -8px;
-  }
-
-  /* ---------- Results sheet ---------- */
-  .results-sheet{
-    display: grid;
-    grid-template-columns: 120px 1fr;
-    gap: 24px;
-  }
-  .margin-rail{
-    border-right: 2px solid var(--rule);
-    padding-right: 18px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 22px;
-  }
-  .stamp{
-    font-family: var(--display);
-    font-size: 0.95rem;
-    letter-spacing: 0.06em;
-    color: var(--pos);
-    border: 3px solid var(--pos);
-    border-radius: 8px;
-    padding: 8px 10px;
-    text-align: center;
-    transform: rotate(-8deg);
-    width: 100%;
-  }
-  .stamp.negative{ color: var(--neg); border-color: var(--neg); }
-  .stamp.mixed{ color: var(--neu); border-color: var(--neu); }
-  .stamp.neutral{ color: var(--ink-soft); border-color: var(--ink-soft); }
-
-  .confidence-block{ width: 100%; }
-  .confidence-block .label{ text-align:center; margin-bottom: 8px; }
-  .bars{ display:flex; flex-direction:column; gap: 6px; }
-  .bar-row{ display:flex; align-items:center; gap: 6px; }
-  .bar{ flex:1; height: 8px; background: var(--paper-line); border-radius: 4px; overflow:hidden; }
-  .bar-fill{ display:block; height:100%; width:0%; transition: width 0.4s ease; }
-  .bar-fill.pos{ background: var(--pos); }
-  .bar-fill.neu{ background: var(--neu); }
-  .bar-fill.neg{ background: var(--neg); }
-
-  .marked-text{
-    line-height: 1.7;
-    font-size: 1.02rem;
-    white-space: pre-wrap;
-  }
-  .marked-text mark{
-    background: var(--highlight);
-    color: var(--ink);
-    padding: 0 2px;
-    border-radius: 2px;
-    text-decoration: underline wavy var(--rule);
-    text-decoration-thickness: 1px;
-  }
-
-  .entities-block{ margin-top: 22px; }
-  .entity-list{ display:flex; flex-wrap: wrap; gap: 8px; }
-  .entity-chip{
-    background: var(--board);
-    color: var(--chalk);
-    border-radius: 4px;
-    padding: 4px 8px;
-  }
-  .entity-chip .cat{ color: var(--highlight); margin-left: 4px; }
-  .entity-empty{ color: var(--ink-soft); }
-
-  .foot{
-    text-align:center;
-    padding: 18px 20px 32px;
-    color: var(--chalk-dim);
-  }
-
-  @media (max-width: 560px){
-    .results-sheet{ grid-template-columns: 1fr; }
-    .margin-rail{
-      border-right: none;
-      border-bottom: 2px solid var(--rule);
-      padding-right: 0;
-      padding-bottom: 16px;
-      flex-direction: row;
-      justify-content: space-between;
-    }
-    .stamp{ width: 110px; }
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    *{ transition: none !important; }
-    html{ scroll-behavior: auto; }
-  }
-</style>
-</head>
-<body>
-
-  <header class="board">
-    <div class="board-inner">
-      <p class="eyebrow">Azure AI Language · Text Analytics demo</p>
-      <h1 class="typewriter-title">Review Analyser</h1>
-      <p class="chalk-note">paste a review &mdash; get it graded in real time</p>
-
-      <ol class="steps">
-        <li><span class="chalk-num">1</span> Paste any review, tweet, or comment</li>
-        <li><span class="chalk-num">2</span> We send it to Azure AI Language</li>
-        <li><span class="chalk-num">3</span> Your copy comes back marked up &amp; stamped</li>
-      </ol>
-    </div>
-  </header>
-
-  <main class="desk">
-    <section class="sheet input-sheet">
-      <label for="reviewInput" class="sheet-label">Paste the review</label>
-      <textarea id="reviewInput" rows="8" placeholder="e.g. &ldquo;The battery life is incredible but the camera app crashes constantly. Customer support at Acme was friendly though.&rdquo;"></textarea>
-
-      <div class="sheet-footer">
-        <span id="charCount" class="mono small">0 characters</span>
-        <button id="analyzeBtn" class="stamp-button">
-          <span class="btn-label">Grade this review</span>
-        </button>
-      </div>
-      <p id="errorMsg" class="error-msg" hidden></p>
-    </section>
-
-    <section id="resultsSheet" class="sheet results-sheet" hidden>
-      <div class="margin-rail">
-        <div id="stampBadge" class="stamp" aria-hidden="true">PENDING</div>
-        <div class="confidence-block">
-          <p class="mono small label">confidence</p>
-          <div class="bars">
-            <div class="bar-row"><span class="mono tiny">pos</span><span class="bar"><span id="barPos" class="bar-fill pos"></span></span></div>
-            <div class="bar-row"><span class="mono tiny">neu</span><span class="bar"><span id="barNeu" class="bar-fill neu"></span></span></div>
-            <div class="bar-row"><span class="mono tiny">neg</span><span class="bar"><span id="barNeg" class="bar-fill neg"></span></span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="page-body">
-        <p class="sheet-label">marked-up copy</p>
-        <p id="markedText" class="marked-text"></p>
-
-        <div class="entities-block">
-          <p class="sheet-label">named entities</p>
-          <div id="entityList" class="entity-list mono small"></div>
-        </div>
-      </div>
-    </section>
-
-    <p id="loadingMsg" class="loading-msg mono small" hidden>marking up your copy…</p>
-  </main>
-
-  <footer class="foot">
-    <p class="mono tiny">Built on Azure AI Language &middot; sentiment, key phrases &amp; entities &middot; Python backend on Azure</p>
-  </footer>
-
-<script>
-  const textarea = document.getElementById('reviewInput');
-  const charCount = document.getElementById('charCount');
-  const analyzeBtn = document.getElementById('analyzeBtn');
-  const errorMsg = document.getElementById('errorMsg');
-  const loadingMsg = document.getElementById('loadingMsg');
-  const resultsSheet = document.getElementById('resultsSheet');
-  const stampBadge = document.getElementById('stampBadge');
-  const markedText = document.getElementById('markedText');
-  const entityList = document.getElementById('entityList');
-  const barPos = document.getElementById('barPos');
-  const barNeu = document.getElementById('barNeu');
-  const barNeg = document.getElementById('barNeg');
-
-  textarea.addEventListener('input', () => {
-    charCount.textContent = `${textarea.value.length} characters`;
-  });
-
-  analyzeBtn.addEventListener('click', async () => {
-    const text = textarea.value.trim();
-    errorMsg.hidden = true;
-
-    if (!text) {
-      errorMsg.textContent = 'Paste a review first — there is nothing to grade yet.';
-      errorMsg.hidden = false;
-      return;
-    }
-    if (text.length > 5000) {
-      errorMsg.textContent = 'Keep it under 5,000 characters for this demo.';
-      errorMsg.hidden = false;
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || `Request failed (${res.status})`);
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Review Analyser — graded by AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Caveat:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Work+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --board: #1e3b2f;
+        --board-deep: #14261d;
+        --board-line: rgba(244, 241, 232, 0.12);
+        --chalk: #f4f1e8;
+        --chalk-dim: rgba(244, 241, 232, 0.6);
+        --paper: #f6f4ec;
+        --paper-edge: #ece7d6;
+        --paper-line: rgba(30, 40, 30, 0.1);
+        --ink: #233326;
+        --ink-soft: #5b6b5c;
+        --highlight: #f2c84b;
+        --pos: #5e9c7c;
+        --neu: #c9a227;
+        --neg: #d9684f;
+        --rule: #b6442f;
+        --rule-deep: #8a2f1d;
+        --metal: #9ca3a0;
+        --radius: 3px;
+        --display: "Special Elite", "Courier New", monospace;
+        --hand: "Caveat", cursive;
+        --body: "Work Sans", system-ui, sans-serif;
+        --mono: "IBM Plex Mono", monospace;
       }
 
-      const data = await res.json();
-      renderResults(text, data);
-    } catch (err) {
-      errorMsg.textContent = `Could not grade this review: ${err.message}`;
-      errorMsg.hidden = false;
-      resultsSheet.hidden = true;
-    } finally {
-      setLoading(false);
-    }
-  });
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font-family: var(--body);
+        color: var(--ink);
+        background: var(--board);
+        -webkit-font-smoothing: antialiased;
+      }
 
-  function setLoading(isLoading) {
-    analyzeBtn.disabled = isLoading;
-    loadingMsg.hidden = !isLoading;
-    analyzeBtn.querySelector('.btn-label').textContent = isLoading
-      ? 'Grading…'
-      : 'Grade this review';
-  }
+      /* ---------- Hero / board ---------- */
+      .board {
+        position: relative;
+        background:
+          radial-gradient(
+            ellipse 600px 280px at 18% -10%,
+            rgba(244, 241, 232, 0.07),
+            transparent 60%
+          ),
+          repeating-linear-gradient(
+            transparent 0 38px,
+            var(--board-line) 38px 39px
+          ),
+          var(--board);
+        color: var(--chalk);
+        padding: 68px 24px 84px;
+        text-align: center;
+      }
+      .board-inner {
+        max-width: 720px;
+        margin: 0 auto;
+        position: relative;
+      }
 
-  function renderResults(originalText, data) {
-    const { sentiment, confidenceScores, keyPhrases, entities } = data;
+      .pin {
+        position: absolute;
+        top: -8px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 35% 30%,
+          #e3473b,
+          var(--rule-deep)
+        );
+        box-shadow: 0 3px 4px rgba(0, 0, 0, 0.45);
+      }
+      .pin.left {
+        left: calc(50% - 150px);
+      }
+      .pin.right {
+        left: calc(50% + 136px);
+      }
 
-    stampBadge.textContent = sentiment.toUpperCase();
-    stampBadge.className = 'stamp ' + sentiment.toLowerCase();
+      .eyebrow {
+        font-family: var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 11.5px;
+        color: var(--chalk-dim);
+        margin: 0 0 18px;
+      }
+      .typewriter-title {
+        font-family: var(--display);
+        font-size: clamp(2.5rem, 6vw, 4.1rem);
+        letter-spacing: 0.01em;
+        margin: 0;
+        text-shadow: 0 0 26px rgba(244, 241, 232, 0.16);
+      }
+      .chalk-note {
+        font-family: var(--hand);
+        font-size: 1.65rem;
+        color: var(--highlight);
+        margin: 8px 0 38px;
+        transform: rotate(-1.4deg);
+        display: inline-block;
+      }
+      .chalk-underline {
+        display: block;
+        width: 210px;
+        height: 10px;
+        margin: -4px auto 0;
+        opacity: 0.85;
+      }
 
-    const pos = Math.round((confidenceScores.positive || 0) * 100);
-    const neu = Math.round((confidenceScores.neutral || 0) * 100);
-    const neg = Math.round((confidenceScores.negative || 0) * 100);
-    barPos.style.width = pos + '%';
-    barNeu.style.width = neu + '%';
-    barNeg.style.width = neg + '%';
+      .steps {
+        list-style: none;
+        padding: 0;
+        margin: 0 auto;
+        max-width: 540px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        text-align: left;
+        font-size: 0.95rem;
+        color: var(--chalk-dim);
+      }
+      .steps li {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .chalk-num {
+        font-family: var(--hand);
+        font-size: 1.3rem;
+        color: var(--chalk);
+        width: 30px;
+        height: 30px;
+        border: 2px solid var(--chalk-dim);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
 
-    markedText.innerHTML = highlightPhrases(originalText, keyPhrases || []);
+      /* torn paper seam between board and desk */
+      .torn-seam {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 26px;
+        background:
+          linear-gradient(135deg, var(--paper) 50%, transparent 50%) 0 0 / 26px
+            26px repeat-x,
+          linear-gradient(45deg, var(--paper) 50%, transparent 50%) 0 0 / 26px
+            26px repeat-x;
+        filter: drop-shadow(0 -6px 10px rgba(0, 0, 0, 0.22));
+      }
 
-    if (entities && entities.length) {
-      entityList.innerHTML = entities
-        .map(e => `<span class="entity-chip">${escapeHtml(e.text)}<span class="cat">${escapeHtml(e.category)}</span></span>`)
-        .join('');
-    } else {
-      entityList.innerHTML = '<span class="entity-empty">no named entities found</span>';
-    }
+      /* ---------- Desk / sheets ---------- */
+      .desk {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 30px 20px 70px;
+        position: relative;
+      }
+      .sheet {
+        background: var(--paper);
+        border-radius: var(--radius);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+        padding: 30px 30px 24px;
+        margin-bottom: 26px;
+        position: relative;
+      }
+      .sheet::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 6px;
+        background: repeating-linear-gradient(
+          90deg,
+          transparent 0 14px,
+          rgba(0, 0, 0, 0.06) 14px 16px
+        );
+        border-radius: var(--radius) var(--radius) 0 0;
+      }
+      .tape {
+        position: absolute;
+        top: -14px;
+        width: 64px;
+        height: 26px;
+        background: rgba(244, 241, 232, 0.78);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.18);
+      }
+      .tape.left {
+        left: 28px;
+        transform: rotate(-4deg);
+      }
+      .tape.right {
+        right: 30px;
+        transform: rotate(3deg);
+      }
 
-    resultsSheet.hidden = false;
-    resultsSheet.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+      .sheet-label {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin: 0 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sheet-label::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--paper-line);
+      }
 
-  function highlightPhrases(text, phrases) {
-    if (!phrases.length) return escapeHtml(text);
+      textarea {
+        width: 100%;
+        font-family: var(--body);
+        font-size: 1.02rem;
+        line-height: 1.6;
+        color: var(--ink);
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--paper-line);
+        resize: vertical;
+        padding: 4px 2px 16px;
+        background-image: repeating-linear-gradient(
+          transparent 0 32px,
+          var(--paper-line) 32px 33px
+        );
+      }
+      textarea::placeholder {
+        color: rgba(91, 107, 92, 0.55);
+      }
+      textarea:focus {
+        outline: 2px solid var(--highlight);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
 
-    const sorted = [...phrases].sort((a, b) => b.length - a.length);
-    const safe = escapeHtml(text);
-    const escapedPattern = new RegExp(
-      `(${sorted.map(p => escapeHtml(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
-      'gi'
-    );
+      .sheet-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+      }
+      .mono {
+        font-family: var(--mono);
+      }
+      .small {
+        font-size: 12px;
+      }
+      .tiny {
+        font-size: 10.5px;
+      }
+      #charCount {
+        color: var(--ink-soft);
+        letter-spacing: 0.02em;
+      }
 
-    return safe.replace(escapedPattern, '<mark>$1</mark>');
-  }
+      .stamp-button {
+        font-family: var(--display);
+        font-size: 0.96rem;
+        letter-spacing: 0.04em;
+        background: var(--rule);
+        color: var(--paper);
+        border: none;
+        padding: 13px 24px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition:
+          transform 0.14s ease,
+          box-shadow 0.14s ease,
+          rotate 0.14s ease;
+        box-shadow: 0 4px 0 var(--rule-deep);
+      }
+      .stamp-button:hover {
+        transform: translateY(-2px) rotate(-1deg);
+      }
+      .stamp-button:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 var(--rule-deep);
+      }
+      .stamp-button:focus-visible {
+        outline: 3px solid var(--highlight);
+        outline-offset: 2px;
+      }
+      .stamp-button:disabled {
+        opacity: 0.6;
+        cursor: progress;
+        transform: none;
+      }
 
-  function escapeHtml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
-</script>
-</body>
+      .error-msg {
+        color: var(--neg);
+        font-family: var(--mono);
+        font-size: 12px;
+        margin: 14px 0 0;
+        padding-left: 10px;
+        border-left: 2px solid var(--neg);
+      }
+      .error-msg:not([hidden]) {
+        animation: shake 0.32s ease;
+      }
+
+      .loading-msg {
+        text-align: center;
+        color: var(--chalk-dim);
+        margin-top: -6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .loading-msg::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--highlight);
+        animation: pulseDot 0.9s ease-in-out infinite;
+      }
+
+      /* ---------- Results sheet ---------- */
+      .results-sheet {
+        display: grid;
+        grid-template-columns: 128px 1fr;
+        gap: 26px;
+      }
+      .results-sheet:not([hidden]) {
+        animation: stampSlam 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      .margin-rail {
+        border-right: 2px dashed var(--rule);
+        padding-right: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 26px;
+      }
+      .stamp {
+        font-family: var(--display);
+        font-size: 0.95rem;
+        letter-spacing: 0.07em;
+        color: var(--pos);
+        border: 3px double var(--pos);
+        border-radius: 10px;
+        padding: 10px 8px;
+        text-align: center;
+        transform: rotate(-7deg);
+        width: 100%;
+        box-shadow: 0 0 0 1px rgba(94, 156, 124, 0.25) inset;
+        position: relative;
+      }
+      .stamp::before {
+        content: "✓";
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 2px;
+      }
+      .stamp.negative {
+        color: var(--neg);
+        border-color: var(--neg);
+        box-shadow: 0 0 0 1px rgba(217, 104, 79, 0.25) inset;
+      }
+      .stamp.negative::before {
+        content: "✕";
+      }
+      .stamp.mixed {
+        color: var(--neu);
+        border-color: var(--neu);
+        box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.25) inset;
+      }
+      .stamp.mixed::before {
+        content: "±";
+      }
+      .stamp.neutral {
+        color: var(--ink-soft);
+        border-color: var(--ink-soft);
+        box-shadow: 0 0 0 1px rgba(91, 107, 92, 0.25) inset;
+      }
+      .stamp.neutral::before {
+        content: "–";
+      }
+
+      .confidence-block {
+        width: 100%;
+      }
+      .confidence-block .label {
+        text-align: center;
+        margin-bottom: 9px;
+        color: var(--ink-soft);
+        letter-spacing: 0.08em;
+      }
+      .bars {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .bar-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .bar-row .mono.tiny {
+        width: 24px;
+        color: var(--ink-soft);
+      }
+      .bar {
+        flex: 1;
+        height: 8px;
+        background: var(--paper-line);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        display: block;
+        height: 100%;
+        width: 0%;
+        transition: width 0.5s ease;
+        border-radius: 4px;
+      }
+      .bar-fill.pos {
+        background: var(--pos);
+      }
+      .bar-fill.neu {
+        background: var(--neu);
+      }
+      .bar-fill.neg {
+        background: var(--neg);
+      }
+
+      /* language tag — sits in the margin rail alongside the stamp/confidence,
+         same visual language (mono label + centered value), no new layout. */
+      .language-block {
+        width: 100%;
+        text-align: center;
+      }
+      .language-block .label {
+        margin-bottom: 7px;
+        color: var(--ink-soft);
+        letter-spacing: 0.08em;
+      }
+      .lang-tag {
+        color: var(--ink-soft);
+        letter-spacing: 0.06em;
+      }
+
+      .marked-text {
+        line-height: 1.75;
+        font-size: 1.04rem;
+        white-space: pre-wrap;
+      }
+      .marked-text mark {
+        background: var(--highlight);
+        color: var(--ink);
+        padding: 0 3px;
+        border-radius: 2px;
+        text-decoration: underline wavy var(--rule);
+        text-decoration-thickness: 1px;
+      }
+
+      .entities-block {
+        margin-top: 24px;
+      }
+      .entity-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .entity-chip {
+        background: var(--board);
+        color: var(--chalk);
+        border-radius: 4px;
+        padding: 5px 9px;
+        transition: transform 0.12s ease;
+      }
+      .entity-chip:hover {
+        transform: translateY(-2px);
+      }
+      .entity-chip .cat {
+        color: var(--highlight);
+        margin-left: 5px;
+      }
+      .entity-empty {
+        color: var(--ink-soft);
+      }
+
+      /* PII chips reuse the entity-chip look, just on the rule-red accent
+         so redacted/sensitive items read as distinct from named entities. */
+      .entity-chip.pii {
+        background: var(--rule-deep);
+      }
+      .entity-chip.pii .cat {
+        color: var(--paper);
+      }
+
+      /* summary + PII sections — same block rhythm as entities-block above */
+      .summary-block,
+      .pii-block {
+        margin-top: 24px;
+      }
+      .summary-text {
+        line-height: 1.65;
+        font-style: italic;
+        color: var(--ink);
+      }
+      .pii-redacted {
+        color: var(--ink-soft);
+        line-height: 1.6;
+        white-space: pre-wrap;
+        margin: 0 0 10px;
+      }
+
+      .foot {
+        text-align: center;
+        padding: 20px 20px 36px;
+        color: var(--chalk-dim);
+        background: var(--board);
+      }
+      .foot .mono {
+        opacity: 0.85;
+      }
+
+      @media (max-width: 560px) {
+        .results-sheet {
+          grid-template-columns: 1fr;
+        }
+        .margin-rail {
+          border-right: none;
+          border-bottom: 2px dashed var(--rule);
+          padding-right: 0;
+          padding-bottom: 18px;
+          flex-direction: row;
+          justify-content: space-between;
+          flex-wrap: wrap;
+        }
+        .stamp {
+          width: 116px;
+        }
+      }
+
+      @keyframes stampSlam {
+        0% {
+          opacity: 0;
+          transform: translateY(-10px) rotate(-2deg) scale(0.98);
+        }
+        60% {
+          opacity: 1;
+          transform: translateY(2px) rotate(0.4deg) scale(1.01);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0) rotate(0) scale(1);
+        }
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-4px);
+        }
+        75% {
+          transform: translateX(4px);
+        }
+      }
+      @keyframes pulseDot {
+        0%,
+        100% {
+          opacity: 0.4;
+          transform: scale(0.85);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.05);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="board">
+      <span class="pin left" aria-hidden="true"></span>
+      <span class="pin right" aria-hidden="true"></span>
+      <div class="board-inner">
+        <p class="eyebrow">Azure AI Language · Text Analytics demo</p>
+        <h1 class="typewriter-title">Review Analyser</h1>
+        <span class="chalk-note"
+          >paste a review &mdash; get it graded in real time</span
+        >
+        <svg class="chalk-underline" viewBox="0 0 210 10" aria-hidden="true">
+          <path
+            d="M3,6 C40,1 80,9 110,4 C145,0 175,8 207,3"
+            fill="none"
+            stroke="#F2C84B"
+            stroke-width="2.4"
+            stroke-linecap="round"
+          />
+        </svg>
+
+        <ol class="steps">
+          <li>
+            <span class="chalk-num">1</span> Paste any review, tweet, or comment
+          </li>
+          <li>
+            <span class="chalk-num">2</span> We send it to Azure AI Language
+          </li>
+          <li>
+            <span class="chalk-num">3</span> Your copy comes back marked up
+            &amp; stamped
+          </li>
+        </ol>
+      </div>
+      <div class="torn-seam" aria-hidden="true"></div>
+    </header>
+
+    <main class="desk">
+      <section class="sheet input-sheet">
+        <span class="tape left" aria-hidden="true"></span>
+        <span class="tape right" aria-hidden="true"></span>
+        <label for="reviewInput" class="sheet-label">Paste the review</label>
+        <textarea
+          id="reviewInput"
+          rows="8"
+          placeholder="e.g. &ldquo;The battery life is incredible but the camera app crashes constantly. Customer support at Acme was friendly though.&rdquo;"
+        ></textarea>
+
+        <div class="sheet-footer">
+          <span id="charCount" class="mono small">0 characters</span>
+          <button id="analyzeBtn" class="stamp-button">
+            <span class="btn-label">Grade this review</span>
+          </button>
+        </div>
+        <p id="errorMsg" class="error-msg" hidden></p>
+      </section>
+
+      <section id="resultsSheet" class="sheet results-sheet" hidden>
+        <div class="margin-rail">
+          <div id="stampBadge" class="stamp" aria-hidden="true">PENDING</div>
+          <div class="confidence-block">
+            <p class="mono small label">confidence</p>
+            <div class="bars">
+              <div class="bar-row">
+                <span class="mono tiny">pos</span
+                ><span class="bar"
+                  ><span id="barPos" class="bar-fill pos"></span
+                ></span>
+              </div>
+              <div class="bar-row">
+                <span class="mono tiny">neu</span
+                ><span class="bar"
+                  ><span id="barNeu" class="bar-fill neu"></span
+                ></span>
+              </div>
+              <div class="bar-row">
+                <span class="mono tiny">neg</span
+                ><span class="bar"
+                  ><span id="barNeg" class="bar-fill neg"></span
+                ></span>
+              </div>
+            </div>
+          </div>
+          <div id="languageBlock" class="language-block" hidden>
+            <p class="mono small label">language</p>
+            <p id="languageTag" class="mono small lang-tag"></p>
+          </div>
+        </div>
+
+        <div class="page-body">
+          <p class="sheet-label">marked-up copy</p>
+          <p id="markedText" class="marked-text"></p>
+
+          <div class="entities-block">
+            <p class="sheet-label">named entities</p>
+            <div id="entityList" class="entity-list mono small"></div>
+          </div>
+
+          <div id="summaryBlock" class="summary-block" hidden>
+            <p class="sheet-label">auto-generated summary</p>
+            <p id="summaryText" class="summary-text"></p>
+          </div>
+
+          <div id="piiBlock" class="pii-block" hidden>
+            <p class="sheet-label">PII detected</p>
+            <p id="piiRedactedText" class="pii-redacted mono small"></p>
+            <div id="piiList" class="entity-list mono small"></div>
+          </div>
+        </div>
+      </section>
+
+      <p id="loadingMsg" class="loading-msg mono small" hidden>
+        marking up your copy…
+      </p>
+    </main>
+
+    <footer class="foot">
+      <p class="mono tiny">
+        Built on Azure AI Language &middot; sentiment, key phrases, entities,
+        PII redaction, language detection &amp; summarization &middot; Python
+        backend on Azure
+      </p>
+    </footer>
+
+    <script>
+      const textarea = document.getElementById("reviewInput");
+      const charCount = document.getElementById("charCount");
+      const analyzeBtn = document.getElementById("analyzeBtn");
+      const errorMsg = document.getElementById("errorMsg");
+      const loadingMsg = document.getElementById("loadingMsg");
+      const resultsSheet = document.getElementById("resultsSheet");
+      const stampBadge = document.getElementById("stampBadge");
+      const markedText = document.getElementById("markedText");
+      const entityList = document.getElementById("entityList");
+      const barPos = document.getElementById("barPos");
+      const barNeu = document.getElementById("barNeu");
+      const barNeg = document.getElementById("barNeg");
+      const languageBlock = document.getElementById("languageBlock");
+      const languageTag = document.getElementById("languageTag");
+      const summaryBlock = document.getElementById("summaryBlock");
+      const summaryText = document.getElementById("summaryText");
+      const piiBlock = document.getElementById("piiBlock");
+      const piiRedactedText = document.getElementById("piiRedactedText");
+      const piiList = document.getElementById("piiList");
+
+      textarea.addEventListener("input", () => {
+        charCount.textContent = `${textarea.value.length} characters`;
+      });
+
+      analyzeBtn.addEventListener("click", async () => {
+        const text = textarea.value.trim();
+        errorMsg.hidden = true;
+
+        if (!text) {
+          errorMsg.textContent =
+            "Paste a review first — there is nothing to grade yet.";
+          errorMsg.hidden = false;
+          return;
+        }
+        if (text.length > 5000) {
+          errorMsg.textContent =
+            "Keep it under 5,000 characters for this demo.";
+          errorMsg.hidden = false;
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `Request failed (${res.status})`);
+          }
+
+          const data = await res.json();
+          renderResults(text, data);
+        } catch (err) {
+          errorMsg.textContent = `Could not grade this review: ${err.message}`;
+          errorMsg.hidden = false;
+          resultsSheet.hidden = true;
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      function setLoading(isLoading) {
+        analyzeBtn.disabled = isLoading;
+        loadingMsg.hidden = !isLoading;
+        analyzeBtn.querySelector(".btn-label").textContent = isLoading
+          ? "Grading…"
+          : "Grade this review";
+      }
+
+      function renderResults(originalText, data) {
+        const {
+          sentiment,
+          confidenceScores,
+          keyPhrases,
+          entities,
+          language,
+          pii,
+          summary,
+        } = data;
+
+        stampBadge.textContent = sentiment.toUpperCase();
+        stampBadge.className = "stamp " + sentiment.toLowerCase();
+
+        const pos = Math.round((confidenceScores.positive || 0) * 100);
+        const neu = Math.round((confidenceScores.neutral || 0) * 100);
+        const neg = Math.round((confidenceScores.negative || 0) * 100);
+        barPos.style.width = pos + "%";
+        barNeu.style.width = neu + "%";
+        barNeg.style.width = neg + "%";
+
+        markedText.innerHTML = highlightPhrases(originalText, keyPhrases || []);
+
+        if (entities && entities.length) {
+          entityList.innerHTML = entities
+            .map(
+              (e) =>
+                `<span class="entity-chip">${escapeHtml(e.text)}<span class="cat">${escapeHtml(e.category)}</span></span>`,
+            )
+            .join("");
+        } else {
+          entityList.innerHTML =
+            '<span class="entity-empty">no named entities found</span>';
+        }
+
+        // language detection — small tag in the margin rail, hidden if absent
+        if (language && language.iso6391Name) {
+          const confidencePct = Math.round(
+            (language.confidenceScore || 0) * 100,
+          );
+          languageTag.textContent = `${language.iso6391Name.toUpperCase()} · ${confidencePct}%`;
+          languageTag.title = language.name || "";
+          languageBlock.hidden = false;
+        } else {
+          languageBlock.hidden = true;
+        }
+
+        // abstractive summary — async on the backend, so it may be null
+        if (summary) {
+          summaryText.textContent = summary;
+          summaryBlock.hidden = false;
+        } else {
+          summaryBlock.hidden = true;
+        }
+
+        // PII — only show the section if something was actually found
+        if (pii && pii.entities && pii.entities.length) {
+          piiRedactedText.textContent = pii.redactedText || "";
+          piiList.innerHTML = pii.entities
+            .map(
+              (e) =>
+                `<span class="entity-chip pii">${escapeHtml(e.text)}<span class="cat">${escapeHtml(e.category)}</span></span>`,
+            )
+            .join("");
+          piiBlock.hidden = false;
+        } else {
+          piiBlock.hidden = true;
+        }
+
+        resultsSheet.hidden = false;
+        resultsSheet.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function highlightPhrases(text, phrases) {
+        if (!phrases.length) return escapeHtml(text);
+
+        const sorted = [...phrases].sort((a, b) => b.length - a.length);
+        const safe = escapeHtml(text);
+        const escapedPattern = new RegExp(
+          `(${sorted.map((p) => escapeHtml(p).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+          "gi",
+        );
+
+        return safe.replace(escapedPattern, "<mark>$1</mark>");
+      }
+
+      function escapeHtml(str) {
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+    </script>
+  </body>
 </html>
